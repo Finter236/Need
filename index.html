@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Файловое хранилище</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      fontFamily: { sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'] },
+      colors: { ink: '#10151F', panel: '#182030', line: '#27324A', mist: '#E7EAF3', dim: '#8A94AB', accent: '#7C9CFF', danger: '#FF7A85' }
+    } } };
+  </script>
+  <style>
+    .field { width:100%; background:#10151F; border:1px solid #27324A; border-radius:.5rem; padding:.6rem .75rem; color:#E7EAF3; }
+    .field:focus { outline:2px solid #7C9CFF; outline-offset:1px; border-color:transparent; }
+    .btn { border-radius:.5rem; padding:.55rem .9rem; font-weight:500; transition:background .15s; }
+    .btn:focus-visible { outline:2px solid #7C9CFF; outline-offset:2px; }
+    .btn-primary { background:#7C9CFF; color:#10151F; }
+    .btn-primary:hover { background:#97B0FF; }
+    .btn-primary:disabled { opacity:.5; cursor:wait; }
+    .btn-ghost { border:1px solid #27324A; color:#E7EAF3; }
+    .btn-ghost:hover { background:#202a40; }
+    .btn-danger { border:1px solid #5a2a33; color:#FF7A85; }
+    .btn-danger:hover { background:#2a1a20; }
+    .drop-active { border-color:#7C9CFF !important; background:#1c2640 !important; }
+  </style>
+</head>
+<body class="bg-ink text-mist font-sans min-h-screen antialiased">
+
+  <!-- Вход -->
+  <main id="auth-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <form id="login-form" class="w-full max-w-sm bg-panel border border-line rounded-2xl p-8 space-y-5" autocomplete="on">
+      <div>
+        <h1 class="text-2xl font-semibold">Файловое хранилище</h1>
+        <p class="text-dim text-sm mt-1">Войдите, чтобы увидеть доступные файлы.</p>
+      </div>
+      <div>
+        <label for="login-email" class="block text-sm text-dim mb-1">Логин</label>
+        <input id="login-email" type="text" required autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="100" class="field">
+      </div>
+      <div>
+        <label for="login-password" class="block text-sm text-dim mb-1">Пароль</label>
+        <input id="login-password" type="password" required autocomplete="current-password" class="field">
+      </div>
+      <p id="login-error" class="hidden text-sm text-danger" role="alert"></p>
+      <button id="login-btn" class="btn btn-primary w-full" type="submit">Войти</button>
+    </form>
+  </main>
+
+  <!-- Установка пароля: первый вход по приглашению, сброс и смена -->
+  <main id="setpw-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <form id="setpw-form" class="w-full max-w-sm bg-panel border border-line rounded-2xl p-8 space-y-5">
+      <div>
+        <h1 id="setpw-title" class="text-2xl font-semibold">Задайте пароль</h1>
+        <p class="text-dim text-sm mt-1">Не короче 10 символов. Временный пароль перестанет работать. Лучше длинная фраза, которую вы нигде больше не используете.</p>
+      </div>
+      <div>
+        <label for="setpw-1" class="block text-sm text-dim mb-1">Новый пароль</label>
+        <input id="setpw-1" type="password" required minlength="10" autocomplete="new-password" class="field">
+      </div>
+      <div>
+        <label for="setpw-2" class="block text-sm text-dim mb-1">Повторите пароль</label>
+        <input id="setpw-2" type="password" required minlength="10" autocomplete="new-password" class="field">
+      </div>
+      <p id="setpw-error" class="hidden text-sm text-danger" role="alert"></p>
+      <button id="setpw-btn" class="btn btn-primary w-full" type="submit">Сохранить пароль</button>
+      <button id="setpw-cancel" class="hidden w-full text-sm text-dim hover:text-mist" type="button">Отмена</button>
+    </form>
+  </main>
+
+  <!-- Приложение -->
+  <div id="app-view" class="hidden">
+    <header class="border-b border-line bg-panel/60 backdrop-blur sticky top-0 z-10">
+      <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
+        <span class="font-semibold">Хранилище</span>
+        <nav class="flex gap-1 text-sm" aria-label="Разделы">
+          <a id="tab-catalog" href="#/" class="px-3 py-1.5 rounded-lg">Каталог</a>
+          <a id="tab-admin" href="#/admin" class="hidden px-3 py-1.5 rounded-lg">Управление</a>
+        </nav>
+        <div class="ml-auto flex items-center gap-3 text-sm">
+          <span id="user-email" class="text-dim hidden sm:inline truncate max-w-[16rem]"></span>
+          <button id="chpw-btn" class="btn btn-ghost" type="button">Сменить пароль</button>
+          <button id="logout-btn" class="btn btn-ghost" type="button">Выйти</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8">
+      <!-- Раздел 1: каталог -->
+      <section id="catalog-view" class="space-y-5">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input id="search" type="search" placeholder="Поиск по названию" aria-label="Поиск по названию" class="field sm:flex-1">
+          <select id="category-filter" aria-label="Категория" class="field sm:w-56"></select>
+        </div>
+        <ul id="catalog-list" class="space-y-3"></ul>
+        <p id="catalog-empty" class="hidden text-dim text-center py-12"></p>
+      </section>
+
+      <!-- Раздел 2: администратор -->
+      <section id="admin-view" class="hidden space-y-10">
+        <form id="upload-form" class="bg-panel border border-line rounded-2xl p-6 space-y-4">
+          <h2 class="text-lg font-semibold">Загрузить файл</h2>
+          <div id="drop-zone" tabindex="0" role="button" aria-label="Выбрать файл"
+               class="border-2 border-dashed border-line rounded-xl p-8 text-center cursor-pointer bg-ink">
+            <p id="drop-label" class="text-dim">Перетащите файл сюда или нажмите, чтобы выбрать</p>
+            <p class="text-xs text-dim mt-2">До 50 МБ: pdf, zip, txt, csv, png, jpg, gif, webp, docx, xlsx, pptx, mp3, mp4</p>
+            <input id="file-input" type="file" class="hidden">
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label for="f-title" class="block text-sm text-dim mb-1">Название</label>
+              <input id="f-title" required maxlength="200" class="field">
+            </div>
+            <div>
+              <label for="f-category" class="block text-sm text-dim mb-1">Категория</label>
+              <input id="f-category" maxlength="60" placeholder="Прочее" list="category-options" class="field">
+              <datalist id="category-options"></datalist>
+            </div>
+          </div>
+          <div>
+            <label for="f-desc" class="block text-sm text-dim mb-1">Описание</label>
+            <textarea id="f-desc" rows="3" maxlength="2000" class="field"></textarea>
+          </div>
+          <div class="flex items-center gap-4">
+            <button id="upload-btn" class="btn btn-primary" type="submit">Загрузить</button>
+            <p id="upload-msg" class="text-sm text-dim" role="status"></p>
+          </div>
+        </form>
+
+        <div>
+          <h2 class="text-lg font-semibold mb-3">Все файлы</h2>
+          <ul id="admin-list" class="space-y-3"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden px-4 py-2 rounded-lg bg-panel border border-line text-sm shadow-lg" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
